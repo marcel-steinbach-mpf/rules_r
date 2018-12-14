@@ -284,8 +284,8 @@ addDevPackageDepsToRepo <- function(pkg, repo_dir) {
 #' @return Same as addPackagesToRepo.
 #' @export
 cloneLibraryToRepo <- function(repo_dir, keep_versions = TRUE) {
-  pkgs <- installed.packages()
-  pkgs <- pkgs[pkgs$Priority != "base", ]  # Do not include base packages.
+  pkgs <- data.frame(installed.packages())
+  pkgs <- pkgs[(pkgs$Priority != "base" | is.na(pkgs$Priority)),]  # Do not include base packages.
   vers <- {if (keep_versions) pkgs[, "Version"] else rep(NA_character_, nrow(pkgs))}
   addPackagesToRepo(pkgs = pkgs[, "Package"], versions = vers, repo_dir = repo_dir)
 }
