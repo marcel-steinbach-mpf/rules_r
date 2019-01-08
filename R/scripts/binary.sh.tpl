@@ -66,7 +66,7 @@ export R_LIBS
 export R_LIBS_USER=dummy
 
 src_path="../{workspace_name}/{src}"
-
+cd $(dirname $src_path)
 if "{ignore_execute_permissions}" || ! [[ -x "${src_path}" ]]; then
   {Rscript} {Rscript_args} "${src_path}" {script_args} "$@"
 else
