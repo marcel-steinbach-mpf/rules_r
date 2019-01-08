@@ -60,7 +60,7 @@ export R_LIBS
 export R_LIBS_USER=dummy
 
 src_path="../{workspace_name}/{src}"
-
+cd $(dirname $src_path)
 if [[ -x "${src_path}" ]]; then
   "${src_path}" "$@"
 else
