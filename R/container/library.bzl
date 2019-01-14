@@ -67,6 +67,7 @@ _r_library_layer = rule(
             doc = "The output group type of the files that this layer will capture.",
         ),
     },
+    toolchains=["@io_bazel_rules_docker//toolchains/docker:toolchain_type"],
     executable = False,
     outputs = _layer.outputs,
     implementation = _library_layer_impl,
