@@ -149,7 +149,7 @@ fi
 
 export R_LIBS="${R_LIBS_DEPS//_EXEC_ROOT_/${EXEC_ROOT}/}"
 
-${RSCRIPT} -e 'if(grep("${R_LIBS", Sys.getenv("R_LIBS"), fixed=TRUE) != 0) { write("R_LIBS appears to have ${R_LIBS} placeholders what indirectly points out that you exceeded 10k-character limit and R_LIBS has lost. Good thing to do right now is to consider removing any placeholders out of R_LIBS. Good luck!", stderr()); quit(status=1) }'
+${RSCRIPT} -e 'if ( length(grep("${R_LIBS", Sys.getenv("R_LIBS"), fixed = TRUE)) != 0) { write("R_LIBS appears to have ${R_LIBS} placeholders what indirectly points out that you exceeded 10k-character limit and R_LIBS has lost. Good thing to do right now is to consider removing any placeholders out of R_LIBS. Good luck!", stderr()); quit(status=1) }'
 
 # Easy case -- we allow timestamp and install paths to be stamped inside the package files.
 if ! ${REPRODUCIBLE_BUILD}; then
