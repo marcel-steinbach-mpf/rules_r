@@ -16,7 +16,7 @@ load("@com_grail_rules_r//R:defs.bzl", "r_pkg")
 
 r_pkg(
     name = "genfiles",
-    srcs = [":DESCRIPTION"] + glob(
+    srcs = [":description_file"] + glob(
         ["**"],
         exclude = [
             "BUILD"
