@@ -329,6 +329,7 @@ def _build_impl(ctx):
         "R": " ".join(info.r),
         "RSCRIPT": " ".join(info.rscript),
         "REQUIRED_VERSION": info.version,
+        "GENFILES_DIR_PATH": ctx.genfiles_dir.path,
     }
     ctx.actions.run(
         outputs = output_files,

@@ -181,6 +181,11 @@ rm -rf "${TMP_SRC_PKG}" 2>/dev/null || true
 cp -a "${EXEC_ROOT}/${PKG_SRC_DIR}" "${TMP_SRC_PKG}"
 TMP_FILES+=("${TMP_SRC_PKG}")
 
+PKG_GENFILES_PATH="${GENFILES_DIR_PATH}/${PKG_SRC_DIR}"
+if [[ -d "${PKG_GENFILES_PATH}" && ! -z "$(ls -A ${PKG_GENFILES_PATH})" ]]; then
+    silent cp -vR "${PKG_GENFILES_PATH}"/* ${TMP_SRC_PKG}
+fi
+
 # Reset mtime for all files. R's help DB is specially sensitive to timestamps of .Rd files in man/.
 TZ=UTC find "${TMP_SRC_PKG}" -type f -exec touch -t 197001010000 {} \+
 
