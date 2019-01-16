@@ -151,6 +151,13 @@ export R_LIBS="${R_LIBS_DEPS//_EXEC_ROOT_/${EXEC_ROOT}/}"
 
 ${RSCRIPT} -e 'if ( length(grep("${R_LIBS", Sys.getenv("R_LIBS"), fixed = TRUE)) != 0) { write("R_LIBS appears to have ${R_LIBS} placeholders what indirectly points out that you exceeded 10k-character limit and R_LIBS has lost. Good thing to do right now is to consider removing any placeholders out of R_LIBS. Good luck!", stderr()); quit(status=1) }'
 
+
+# Copy generated files to install path
+# TODO: Ideally, everything is done in a temporary path so that in standalone mode, we're not going to pollute the workspace.
+if [[ -d ${GENFILES_DIR_PATH} ]]; then
+    silent cp -vR ${GENFILES_DIR_PATH}/ .
+fi
+
 # Easy case -- we allow timestamp and install paths to be stamped inside the package files.
 if ! ${REPRODUCIBLE_BUILD}; then
   silent "${R}" CMD INSTALL "${INSTALL_ARGS}" --build --library="${PKG_LIB_PATH}" \

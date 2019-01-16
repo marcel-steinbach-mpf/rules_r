@@ -277,6 +277,7 @@ def _build_impl(ctx):
         "BAZEL_R_VERBOSE": "true" if "rlang-verbose" in ctx.features else "false",
         "R": " ".join(_R),
         "RSCRIPT": " ".join(_Rscript),
+        "GENFILES_DIR_PATH": ctx.genfiles_dir.path
     }
     ctx.actions.run(
         outputs = output_files,
