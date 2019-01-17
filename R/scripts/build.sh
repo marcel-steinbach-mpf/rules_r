@@ -154,7 +154,7 @@ ${RSCRIPT} -e 'if ( length(grep("${R_LIBS", Sys.getenv("R_LIBS"), fixed = TRUE))
 
 # Copy generated files to install path
 # TODO: Ideally, everything is done in a temporary path so that in standalone mode, we're not going to pollute the workspace.
-if [[ -d ${GENFILES_DIR_PATH} ]]; then
+if [[ -d ${GENFILES_DIR_PATH} && ! -z "$(ls -A ${GENFILES_DIR_PATH})" ]]; then
     silent cp -vR ${GENFILES_DIR_PATH}/* .
 fi
 
