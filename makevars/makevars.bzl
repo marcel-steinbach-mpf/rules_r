@@ -37,7 +37,6 @@ def _r_makevars_impl(rctx):
 r_makevars = repository_rule(
     attrs = {
         "makevars_darwin": attr.label(
-            default = "@com_grail_rules_r_makevars_darwin",
             allow_single_file = True,
             doc = "Makevars file to use for macOS overrides.",
         ),
