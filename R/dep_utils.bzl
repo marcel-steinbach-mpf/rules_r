@@ -21,26 +21,19 @@ def _impl(ctx):
     dep_utils_script = ctx.file._dep_utils
 
     repo_dir = ctx.actions.declare_directory("stage-repo")
+    output_pkgs = ctx.actions.declare_directory("output_pkgs")
 
     # Emit the executable shell script.
     script = ctx.actions.declare_file("%s-run" % ctx.label.name)
 
     ctx.actions.run(
-        outputs = [repo_dir],
+        outputs = [repo_dir, output_pkgs],
         executable = "mkdir",
         arguments = [
             "-p",
             repo_dir.path,
+            output_pkgs.path,
         ],
-    )
-
-    ctx.actions.run(
-        outputs = [ctx.outputs.repo_pkg_list.path, ctx.outputs.applied_pkg_list.path],
-        executable = "touch",
-        arguments = [
-            ctx.outputs.repo_pkg_list.path,
-            ctx.outputs.applied_pkg_list.path
-        ]
     )
 
     ctx.actions.expand_template(
@@ -50,15 +43,15 @@ def _impl(ctx):
             "{repo_mgmt_script}": repo_mgmt_script.path,
             "{dep_utils_script}": dep_utils_script.path,
             "{package_list}": ctx.file.base_pkg_list.path,
-            "{repo_package_list}": ctx.outputs.repo_pkg_list.path,
-            "{applied_package_list}": ctx.outputs.applied_pkg_list.path,
+            "{repo_package_list}": "%s/repo_pkgs_%s.csv" % (output_pkgs.short_path, ctx.attr.name),
+            "{applied_package_list}": "%s/final_pkgs_%s.csv" % (output_pkgs.short_path, ctx.attr.name),
             "{repo_dir}": repo_dir.path,
             "{pkgs}": ",".join(ctx.attr.pkgs),
         },
         is_executable = True,
     )
 
-    runfiles =  ctx.runfiles(files = [repo_mgmt_script, dep_utils_script, ctx.file.base_pkg_list, repo_dir])
+    runfiles =  ctx.runfiles(files = [repo_mgmt_script, dep_utils_script, ctx.file.base_pkg_list, repo_dir, output_pkgs])
     return [DefaultInfo(
         runfiles = runfiles,
         executable = script)
@@ -82,8 +75,4 @@ check_pkgs = rule(
          "_check_pkgs_sh_tpl": _check_pkgs_sh_tpl,
     },
     executable = True,
-    outputs = {
-        "repo_pkg_list": "external_packages_%{name}.csv",
-        "applied_pkg_list": "external_packages_%{name}_applied.csv",
-    },
 )

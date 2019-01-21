@@ -61,8 +61,6 @@ writePackageDiff <- function(base_package_list, new_package_list, output) {
             result[row, "sha256.x"] = result[row, "sha256.y"]
             result[row, "mac_3_4_sha256.x"] = result[row, "mac_3_4_sha256.y"]
             result[row, "mac_3_5_sha256.x"] = result[row, "mac_3_5_sha256.y"]
-            print(result[row,])
-
         }
     }
 

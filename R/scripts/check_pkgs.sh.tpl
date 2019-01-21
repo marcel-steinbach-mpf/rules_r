@@ -29,6 +29,8 @@ if [ -z "$PKGS" ]; then
     help; exit 1;
 fi
 
+pwd
+
 REPO_PACKAGE_LIST=${REPO_PACKAGE_LIST:-"external_packages_$(tr , _ <<<$PKGS).csv"}
 
 echo "Pulling packages into ${REPO_DIR} ..."
@@ -55,7 +57,8 @@ Rscript \
 
 APPLIED_PACKAGE_LIST=${APPLIED_PACKAGE_LIST:-"external_packages_$(tr , _ <<<$PKGS)_applied.csv"}
 
-echo "Saving resulting ${APPLIED_PACKAGE_LIST} ..."
 Rscript \
       -e "source('${DEP_UTILS_SCRIPT}')" \
       -e "writePackageDiff(base_package_list='${PACKAGE_LIST}', new_package_list='${REPO_PACKAGE_LIST}', output='${APPLIED_PACKAGE_LIST}')"
+
+echo "Applied difference has been stored in ${APPLIED_PACKAGE_LIST}"
