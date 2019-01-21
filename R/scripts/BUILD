@@ -24,6 +24,8 @@ exports_files([
     "render.R.tpl",
     "system_state.sh",
     "test.sh.tpl",
+    "check_pkgs.sh.tpl",
+    "dep_utils.R"
 ])
 
 cc_binary(

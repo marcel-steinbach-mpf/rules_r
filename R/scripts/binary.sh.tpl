@@ -66,11 +66,12 @@ export R_LIBS
 export R_LIBS_USER=dummy
 
 src_path="../{workspace_name}/{src}"
-cd $(dirname $src_path)
+# changing to the folder of ${src} because we rely on relative sourcing
+cd "$(dirname $src_path)"
 if "{ignore_execute_permissions}" || ! [[ -x "${src_path}" ]]; then
-  {Rscript} {Rscript_args} "${src_path}" {script_args} "$@"
+  {Rscript} {Rscript_args} "$(basename $src_path)" {script_args} "$@"
 else
-  "${src_path}" "$@"
+  "$(basename $src_path)" "$@"
 fi
 
 cd "${START_DIR}" || fatal "Could not go back to start directory."
