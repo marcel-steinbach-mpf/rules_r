@@ -22,6 +22,8 @@ exports_files([
     "lcov_merger.sh",
     "library.sh.tpl",
     "test.sh.tpl",
+    "check_pkgs.sh.tpl",
+    "dep_utils.R"
 ])
 
 cc_binary(
