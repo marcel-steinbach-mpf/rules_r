@@ -10,6 +10,7 @@ help() {
 REPO_MGMT_SCRIPT="{repo_mgmt_script}"
 DEP_UTILS_SCRIPT="{dep_utils_script}"
 REPO_PACKAGE_LIST="{repo_package_list}"
+APPLIED_PACKAGE_LIST="{applied_package_list}"
 PACKAGE_LIST="{package_list}"
 
 REPO_DIR="{repo_dir}"
@@ -49,4 +50,12 @@ echo "Comparing ${REPO_PACKAGE_LIST} and ${PACKAGE_LIST} ..."
 
 Rscript \
       -e "source('${DEP_UTILS_SCRIPT}')" \
-      -e "printPackagesDiff(base_package_list='${PACKAGE_LIST}', new_package_list='${REPO_PACKAGE_LIST}')"
+      -e "printPackageDiff(base_package_list='${PACKAGE_LIST}', new_package_list='${REPO_PACKAGE_LIST}')"
+
+
+APPLIED_PACKAGE_LIST=${APPLIED_PACKAGE_LIST:-"external_packages_$(tr , _ <<<$PKGS)_applied.csv"}
+
+echo "Saving resulting ${APPLIED_PACKAGE_LIST} ..."
+Rscript \
+      -e "source('${DEP_UTILS_SCRIPT}')" \
+      -e "writePackageDiff(base_package_list='${PACKAGE_LIST}', new_package_list='${REPO_PACKAGE_LIST}', output='${APPLIED_PACKAGE_LIST}')"

@@ -26,14 +26,21 @@ def _impl(ctx):
     script = ctx.actions.declare_file("%s-run" % ctx.label.name)
 
     ctx.actions.run(
-        outputs = [repo_dir, ctx.outputs.repo_pkg_list],
+        outputs = [repo_dir],
         executable = "mkdir",
         arguments = [
             "-p",
             repo_dir.path,
-            ctx.outputs.repo_pkg_list.path,
-
         ],
+    )
+
+    ctx.actions.run(
+        outputs = [ctx.outputs.repo_pkg_list.path, ctx.outputs.applied_package_list.path],
+        executable = "touch",
+        arguments = [
+            ctx.outputs.repo_pkg_list.path,
+            ctx.outputs.applied_package_list.path
+        ]
     )
 
     ctx.actions.expand_template(
@@ -44,6 +51,7 @@ def _impl(ctx):
             "{dep_utils_script}": dep_utils_script.path,
             "{package_list}": ctx.file.base_pkg_list.path,
             "{repo_package_list}": ctx.outputs.repo_pkg_list.path,
+            "{applied_package_list}": ctx.outputs.applied_package_list.path,
             "{repo_dir}": repo_dir.path,
             "{pkgs}": ",".join(ctx.attr.pkgs),
         },
@@ -76,5 +84,6 @@ check_pkgs = rule(
     executable = True,
     outputs = {
         "repo_pkg_list": "external_packages_%{name}.csv",
+        "applied_pkg_list": "external_packages_%{name}_applied.csv",
     },
 )

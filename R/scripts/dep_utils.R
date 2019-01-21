@@ -1,7 +1,7 @@
 options(width=10000)
 options(stringsAsFactors=FALSE)
 
-printPackagesDiff <- function(base_package_list, new_package_list) {
+printPackageDiff <- function(base_package_list, new_package_list) {
 
     configred.packages <- read.csv(base_package_list, header=TRUE, sep=",")
     resolved.packages <- read.csv(new_package_list, header=TRUE, sep=",")
@@ -46,4 +46,27 @@ New packages:
 
 }
 
-#printPackagesDiff("external_packages.csv", "external_packages_caret.csv")
+writePackageDiff <- function(base_package_list, new_package_list, output) {
+
+    configred.packages <- read.csv(base_package_list, header=TRUE, sep=",")
+    resolved.packages <- read.csv(new_package_list, header=TRUE, sep=",")
+
+    result <- merge(x = configred.packages, y = resolved.packages,  by = "Package", all.x = TRUE, all.y = TRUE)
+    
+    for (row in 1:nrow(result)) {
+        # new packages
+        if (is.na(result[row, "Version.x"]) ||
+        (!is.na(result[row, "Version.y"]) && result[row, "Version.x"] != result[row, "Version.y"])) {
+            result[row, "Version.x"] = result[row, "Version.y"]
+            result[row, "sha256.x"] = result[row, "sha256.y"]
+            result[row, "mac_3_4_sha256.x"] = result[row, "mac_3_4_sha256.y"]
+            result[row, "mac_3_5_sha256.x"] = result[row, "mac_3_5_sha256.y"]
+            print(result[row,])
+
+        }
+    }
+
+    write.table(result[, 1:5], file=output, col.names=TRUE, row.names=FALSE, sep=",")
+}
+
+#printPackageDiff("external_packages.csv", "external_packages_caret.csv")
