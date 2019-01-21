@@ -35,6 +35,7 @@ echo "Pulling packages into ${REPO_DIR} ..."
 FORMATTED_PKGS=$( sed -e "s/^/'/" -e "s/\$/'/" -e "s/,/',\'/g" <<<${PKGS} )
 echo $FORMATTED_PKGS
 Rscript \
+     -e "options(repos={repos})" \
      -e "sprintf('Configured repositories: %s', getOption('repos'))" \
      -e "source('${REPO_MGMT_SCRIPT}')" \
      -e "addPackagesToRepo(repo_dir='${REPO_DIR}', pkgs=c(${FORMATTED_PKGS}))"
