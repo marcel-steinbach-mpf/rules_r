@@ -29,6 +29,7 @@ Updated packages:
 
     if (nrow(updated.summary) != 0) {
         print(updated.summary, row.names=FALSE, right=FALSE)
+        cat("\n")
         cat(readChar('updated_packages.csv', file.info('updated_packages.csv')$size))
     } else {
         cat("\nNone")

@@ -58,7 +58,7 @@ def _impl(ctx):
     ]
 
 
-check_pkgs = rule(
+r_check_pkgs = rule(
     implementation = _impl,
     attrs = {
         "base_pkg_list": attr.label(

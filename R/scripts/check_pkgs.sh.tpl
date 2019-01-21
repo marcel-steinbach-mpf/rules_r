@@ -29,8 +29,6 @@ if [ -z "$PKGS" ]; then
     help; exit 1;
 fi
 
-pwd
-
 REPO_PACKAGE_LIST=${REPO_PACKAGE_LIST:-"external_packages_$(tr , _ <<<$PKGS).csv"}
 
 echo "Pulling packages into ${REPO_DIR} ..."
