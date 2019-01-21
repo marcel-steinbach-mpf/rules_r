@@ -35,11 +35,11 @@ def _impl(ctx):
     )
 
     ctx.actions.run(
-        outputs = [ctx.outputs.repo_pkg_list.path, ctx.outputs.applied_package_list.path],
+        outputs = [ctx.outputs.repo_pkg_list.path, ctx.outputs.applied_pkg_list.path],
         executable = "touch",
         arguments = [
             ctx.outputs.repo_pkg_list.path,
-            ctx.outputs.applied_package_list.path
+            ctx.outputs.applied_pkg_list.path
         ]
     )
 
@@ -51,7 +51,7 @@ def _impl(ctx):
             "{dep_utils_script}": dep_utils_script.path,
             "{package_list}": ctx.file.base_pkg_list.path,
             "{repo_package_list}": ctx.outputs.repo_pkg_list.path,
-            "{applied_package_list}": ctx.outputs.applied_package_list.path,
+            "{applied_package_list}": ctx.outputs.applied_pkg_list.path,
             "{repo_dir}": repo_dir.path,
             "{pkgs}": ",".join(ctx.attr.pkgs),
         },
