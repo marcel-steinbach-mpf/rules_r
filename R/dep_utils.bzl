@@ -5,14 +5,14 @@ _repo_management = attr.label(
 )
 
 _dep_utils = attr.label(
-    default = "@com_grail_rules_r//scripts:dep_utils.R",
+    default = "@com_grail_rules_r//R/scripts:dep_utils.R",
     allow_single_file = True,
     doc = "R source file containing dep_utils functions.",
 )
 
 _check_pkgs_sh_tpl = attr.label(
     allow_single_file = True,
-    default = "@com_grail_rules_r//scripts:check_pkgs.sh.tpl",
+    default = "@com_grail_rules_r//R/scripts:check_pkgs.sh.tpl",
 )
 
 def _impl(ctx):
