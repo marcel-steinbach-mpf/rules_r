@@ -26,7 +26,7 @@ def _impl(ctx):
     # Emit the executable shell script.
     script = ctx.actions.declare_file("%s-run" % ctx.label.name)
 
-    repos = "c(%s)" % _dict_to_r_vec(ctx.attr.remote_repos)
+    repos = "c(%s)" % (", ".join( [k + "='" + v + "'" for k, v in ctx.attr.remote_repos.items()]))
 
     ctx.actions.run(
         outputs = [repo_dir, output_pkgs],
@@ -42,14 +42,15 @@ def _impl(ctx):
         template = ctx.file._check_pkgs_sh_tpl,
         output = script,
         substitutions = {
-            "{repo_mgmt_script}": repo_mgmt_script.path,
-            "{dep_utils_script}": dep_utils_script.path,
-            "{package_list}": ctx.file.base_pkg_list.path,
+            "{repo_mgmt_script}": repo_mgmt_script.short_path,
+            "{dep_utils_script}": dep_utils_script.short_path,
+            "{package_list}": ctx.file.base_pkg_list.short_path,
             "{repos}": repos,
             "{repo_package_list}": "%s/repo_pkgs_%s.csv" % (output_pkgs.short_path, ctx.attr.name),
             "{applied_package_list}": "%s/final_pkgs_%s.csv" % (output_pkgs.short_path, ctx.attr.name),
-            "{repo_dir}": repo_dir.path,
+            "{repo_dir}": repo_dir.short_path,
             "{pkgs}": ",".join(ctx.attr.pkgs),
+            "{base_output_path}": "bazel-bin"
         },
         is_executable = True,
     )
@@ -59,20 +60,6 @@ def _impl(ctx):
         runfiles = runfiles,
         executable = script)
     ]
-
-
-def _dict_to_r_vec(d):
-    # Convert a skylark dict to a named character vector for R.
-    return ", ".join([k + "=" + _py_type_to_r_type(v) for k, v in d.items()])
-
-def _py_type_to_r_type(v):
-    # Hack: We equate "TRUE" as True, because dict attributes can not have heterogenous values.
-    if v == True or v == "TRUE":
-        return "TRUE"
-    elif v == False or v == "FALSE":
-        return "FALSE"
-    else:
-        return "'" + v + "'"
 
 r_check_pkgs = rule(
     implementation = _impl,

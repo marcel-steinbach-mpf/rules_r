@@ -12,6 +12,7 @@ DEP_UTILS_SCRIPT="{dep_utils_script}"
 REPO_PACKAGE_LIST="{repo_package_list}"
 APPLIED_PACKAGE_LIST="{applied_package_list}"
 PACKAGE_LIST="{package_list}"
+BASE_OUTPUT_PATH="{base_output_path}"
 
 REPO_DIR="{repo_dir}"
 PKGS="{pkgs}"
@@ -31,7 +32,7 @@ fi
 
 REPO_PACKAGE_LIST=${REPO_PACKAGE_LIST:-"external_packages_$(tr , _ <<<$PKGS).csv"}
 
-echo "Pulling packages into ${REPO_DIR} ..."
+echo "Pulling packages into ${BASE_OUTPUT_PATH}/${REPO_DIR} ..."
 FORMATTED_PKGS=$( sed -e "s/^/'/" -e "s/\$/'/" -e "s/,/',\'/g" <<<${PKGS} )
 echo $FORMATTED_PKGS
 Rscript \
@@ -41,13 +42,13 @@ Rscript \
      -e "addPackagesToRepo(repo_dir='${REPO_DIR}', pkgs=c(${FORMATTED_PKGS}))"
 
 
-echo "Creating a package CSV ${REPO_PACKAGE_LIST}"
+echo "Creating a package CSV ${BASE_OUTPUT_PATH}/${REPO_PACKAGE_LIST}"
 
 Rscript \
       -e "source('${REPO_MGMT_SCRIPT}')" \
       -e "packageList(repo_dir='${REPO_DIR}', output_file='${REPO_PACKAGE_LIST}', sha256=TRUE)"
 
-echo "Comparing ${REPO_PACKAGE_LIST} and ${PACKAGE_LIST} ..."
+echo "Comparing ${BASE_OUTPUT_PATH}/${REPO_PACKAGE_LIST} and ${BASE_OUTPUT_PATH}/${PACKAGE_LIST} ..."
 
 Rscript \
       -e "source('${DEP_UTILS_SCRIPT}')" \
@@ -60,4 +61,4 @@ Rscript \
       -e "source('${DEP_UTILS_SCRIPT}')" \
       -e "writePackageDiff(base_package_list='${PACKAGE_LIST}', new_package_list='${REPO_PACKAGE_LIST}', output='${APPLIED_PACKAGE_LIST}')"
 
-echo "Applied difference has been stored in ${APPLIED_PACKAGE_LIST}"
+echo "Applied difference has been stored in ${BASE_OUTPUT_PATH}/${APPLIED_PACKAGE_LIST}"
