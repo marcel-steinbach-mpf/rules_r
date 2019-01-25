@@ -22,7 +22,7 @@
 # - digest
 # - tools
 
-# TODO: Use tools::package_dependencies to avoid using devtools.
+  # TODO: Use tools::package_dependencies to avoid using devtools.
 
 # Options to also download binary archives.
 options("BinariesMac" = TRUE)  # Binaries for Mac
@@ -208,7 +208,9 @@ addPackagesToRepo <- function(pkgs, versions = NA, repo_dir, deps = NA) {
 
   repo_packages <- repoPackages(repo_dir)
 
-  package_deps <- devtools::package_deps(pkgs, dependencies = deps, type = "source")$package
+  ##package_deps <- devtools::package_deps(pkgs, dependencies = deps, type = "source")$package
+  package_deps <- c(pkgs, unique(unlist(tools::package_dependencies(pkgs, recursive = TRUE), use.names=FALSE)))
+
   implicit_package_deps <- setdiff(package_deps, pkgs)
   implicit_package_deps <- setdiff(implicit_package_deps, repo_packages$Package)
 

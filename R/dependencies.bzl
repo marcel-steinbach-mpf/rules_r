@@ -26,6 +26,8 @@ load(
 )
 load("@com_grail_rules_r//R/internal:coverage_deps.bzl", "r_coverage_dependencies")
 
+load("@com_grail_rules_r//R:repositories.bzl", "r_repository")
+
 def r_rules_dependencies(
         makevars_darwin = "@com_grail_rules_r_makevars_darwin",
         makevars_linux = None):
@@ -49,6 +51,18 @@ def r_rules_dependencies(
         makevars_darwin = makevars_darwin,
         makevars_linux = makevars_linux,
     )
+
+    if not native.existing_rule("R_digest_INTERNAL"):
+        r_repository(
+            name = "R_digest_INTERNAL",
+            build_file = None,
+            sha256 = "88276798a37733adbdafa007cdfc7b005077d79bd66a3945b5c39b03bab56c51",
+            strip_prefix = "digest",
+            urls = [
+                "https://ftp.gwdg.de/pub/misc/cran/src/contrib/digest_0.6.17.tar.gz",
+                "https://ftp.gwdg.de/pub/misc/cran/src/contrib/Archive/digest/digest_0.6.17.tar.gz",
+            ],
+        )
 
 def _maybe(repo_rule, name, **kwargs):
     if not native.existing_rule(name):

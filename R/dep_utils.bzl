@@ -1,3 +1,7 @@
+load(
+    "@com_grail_rules_r//R/internal:common.bzl", _library_deps = "library_deps"
+)
+
 _repo_management = attr.label(
     default = "@com_grail_rules_r//scripts:repo_management.R",
     allow_single_file = True,
@@ -15,51 +19,50 @@ _check_pkgs_sh_tpl = attr.label(
     default = "@com_grail_rules_r//R/scripts:check_pkgs.sh.tpl",
 )
 
+load("@com_grail_rules_r//R:providers.bzl", "RPackage")
+
+_script_deps = attr.label_list(
+    providers = [RPackage],
+    default = ["@R_digest_INTERNAL//:digest"],
+)
+
 def _impl(ctx):
+
+    library_deps = _library_deps(ctx.attr._script_deps)
 
     repo_mgmt_script = ctx.file._repo_management
     dep_utils_script = ctx.file._dep_utils
 
-    repo_dir = ctx.actions.declare_directory("stage-repo")
-    output_pkgs = ctx.actions.declare_directory("output_pkgs")
-
-    # Emit the executable shell script.
     script = ctx.actions.declare_file("%s-run" % ctx.label.name)
 
     repos = "c(%s)" % (", ".join( [k + "='" + v + "'" for k, v in ctx.attr.remote_repos.items()]))
-
-    ctx.actions.run(
-        outputs = [repo_dir, output_pkgs],
-        executable = "mkdir",
-        arguments = [
-            "-p",
-            repo_dir.path,
-            output_pkgs.path,
-        ],
-    )
 
     ctx.actions.expand_template(
         template = ctx.file._check_pkgs_sh_tpl,
         output = script,
         substitutions = {
+            "{extra_r_libs}": ":".join([d.short_path for d in library_deps["lib_dirs"]]),
             "{repo_mgmt_script}": repo_mgmt_script.short_path,
             "{dep_utils_script}": dep_utils_script.short_path,
             "{package_list}": ctx.file.base_pkg_list.short_path,
             "{repos}": repos,
-            "{repo_package_list}": "%s/repo_pkgs_%s.csv" % (output_pkgs.short_path, ctx.attr.name),
-            "{applied_package_list}": "%s/final_pkgs_%s.csv" % (output_pkgs.short_path, ctx.attr.name),
-            "{repo_dir}": repo_dir.short_path,
+            "{repo_package_list}": "repo_pkgs_%s.csv" % ctx.attr.name, # % (output_pkgs.short_path, ctx.attr.name),
+            "{applied_package_list}": "final_pkgs_%s.csv"  % ctx.attr.name, # % (output_pkgs.short_path, ctx.attr.name),
             "{pkgs}": ",".join(ctx.attr.pkgs),
-            "{base_output_path}": "bazel-bin"
+            "{versions}": ",".join(ctx.attr.versions)
         },
         is_executable = True,
     )
 
-    runfiles =  ctx.runfiles(files = [repo_mgmt_script, dep_utils_script, ctx.file.base_pkg_list, repo_dir, output_pkgs])
-    return [DefaultInfo(
-        runfiles = runfiles,
-        executable = script)
-    ]
+    runfiles =  ctx.runfiles(files = library_deps["lib_dirs"] + [repo_mgmt_script, dep_utils_script, ctx.file.base_pkg_list])
+    return struct(
+            providers = [
+                DefaultInfo(
+                    runfiles = runfiles,
+                    executable = script)
+            ]
+
+        )
 
 r_check_pkgs = rule(
     implementation = _impl,
@@ -73,6 +76,10 @@ r_check_pkgs = rule(
             mandatory = False,
             doc = "Packages (and dependencies) to check. This can be overriden by -p option",
         ),
+        "versions": attr.string_list(
+            mandatory = False,
+            doc = "Desired package versions. This can be overriden by -v option",
+        ),
         "remote_repos": attr.string_dict(
             default = {"CRAN": "https://cloud.r-project.org"},
             doc = "Repo URLs to use.",
@@ -80,6 +87,7 @@ r_check_pkgs = rule(
         "_repo_management": _repo_management,
          "_dep_utils": _dep_utils,
          "_check_pkgs_sh_tpl": _check_pkgs_sh_tpl,
+         "_script_deps": _script_deps,
     },
     executable = True,
 )
