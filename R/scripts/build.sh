@@ -154,8 +154,9 @@ ${RSCRIPT} -e 'if ( length(grep("${R_LIBS", Sys.getenv("R_LIBS"), fixed = TRUE))
 
 # Copy generated files to install path
 # TODO: Ideally, everything is done in a temporary path so that in standalone mode, we're not going to pollute the workspace.
-if [[ -d ${GENFILES_DIR_PATH} && ! -z "$(ls -A ${GENFILES_DIR_PATH})" ]]; then
-    silent cp -vR ${GENFILES_DIR_PATH}/* .
+PKG_GENFILES_PATH="${GENFILES_DIR_PATH}/${PKG_SRC_DIR}"
+if [[ -d "${PKG_GENFILES_PATH}" && ! -z "$(ls -A ${PKG_GENFILES_PATH})" ]]; then
+    silent cp -vR "${PKG_GENFILES_PATH}"/* ${PKG_SRC_DIR}
 fi
 
 # Easy case -- we allow timestamp and install paths to be stamped inside the package files.
