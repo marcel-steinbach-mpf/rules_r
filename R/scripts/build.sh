@@ -91,6 +91,15 @@ if [[ "${CONFIG_OVERRIDE:-}" ]]; then
   cp "${CONFIG_OVERRIDE}" "${PKG_SRC_DIR}/configure"
 fi
 
+assert_default_namespace() {
+    NAMESPACE_FILE="$1"
+    if [[ ! -f "$NAMESPACE_FILE" ]]; then
+      silent "${RSCRIPT}" - <<EOF 
+tools:::writeDefaultNamespace('${NAMESPACE_FILE}')
+EOF
+    fi
+}
+
 copy_inst_files() {
   local IFS=","
   for copy_pair in ${INST_FILES_MAP}; do
@@ -124,6 +133,23 @@ export R_MAKEVARS_USER="${EXEC_ROOT}/${R_MAKEVARS_USER}"
 export R_LIBS="${R_LIBS_ROCLETS//_EXEC_ROOT_/${EXEC_ROOT}/}"
 export R_LIBS_USER=dummy
 
+# Copy generated files to install path
+# TODO: Ideally, everything is done in a temporary path so that in standalone mode, we're not going to pollute the workspace.
+PKG_GENFILES_PATH="${GENFILES_DIR_PATH}/${PKG_SRC_DIR}"
+if [[ -d "${PKG_GENFILES_PATH}" && ! -z "$(ls -A ${PKG_GENFILES_PATH})" ]]; then
+    silent cp -vR "${PKG_GENFILES_PATH}"/* ${PKG_SRC_DIR}
+fi
+
+if "${BUILD_SRC_ARCHIVE:-"false"}"; then
+  silent "${R}" CMD build "${BUILD_ARGS}" "${PKG_SRC_DIR}"
+  mv "${PKG_NAME}"*.tar.gz "${PKG_SRC_ARCHIVE}"
+
+  trap - EXIT
+  cleanup
+  exit
+fi
+
+
 if [[ "${ROCLETS}" ]]; then
   silent "${RSCRIPT}" - <<EOF
 bazel_libs <- .libPaths()
@@ -138,29 +164,14 @@ fi
 
 mkdir -p "${PKG_LIB_PATH}"
 
-if "${BUILD_SRC_ARCHIVE:-"false"}"; then
-  silent "${R}" CMD build "${BUILD_ARGS}" "${PKG_SRC_DIR}"
-  mv "${PKG_NAME}"*.tar.gz "${PKG_SRC_ARCHIVE}"
-
-  trap - EXIT
-  cleanup
-  exit
-fi
-
 export R_LIBS="${R_LIBS_DEPS//_EXEC_ROOT_/${EXEC_ROOT}/}"
 
 ${RSCRIPT} -e 'if ( length(grep("${R_LIBS", Sys.getenv("R_LIBS"), fixed = TRUE)) != 0) { write("R_LIBS appears to have ${R_LIBS} placeholders what indirectly points out that you exceeded 10k-character limit and R_LIBS has lost. Good thing to do right now is to consider removing any placeholders out of R_LIBS. Good luck!", stderr()); quit(status=1) }'
 
 
-# Copy generated files to install path
-# TODO: Ideally, everything is done in a temporary path so that in standalone mode, we're not going to pollute the workspace.
-PKG_GENFILES_PATH="${GENFILES_DIR_PATH}/${PKG_SRC_DIR}"
-if [[ -d "${PKG_GENFILES_PATH}" && ! -z "$(ls -A ${PKG_GENFILES_PATH})" ]]; then
-    silent cp -vR "${PKG_GENFILES_PATH}"/* ${PKG_SRC_DIR}
-fi
-
 # Easy case -- we allow timestamp and install paths to be stamped inside the package files.
 if ! ${REPRODUCIBLE_BUILD}; then
+  assert_default_namespace "${PKG_SRC_DIR}/NAMESPACE"
   silent "${R}" CMD INSTALL "${INSTALL_ARGS}" --build --library="${PKG_LIB_PATH}" \
     "${PKG_SRC_DIR}"
   mv "${PKG_NAME}"*gz "${PKG_BIN_ARCHIVE}"  # .tgz on macOS and .tar.gz on Linux.
@@ -206,6 +217,7 @@ repro_flags=(
 echo "CPPFLAGS += ${repro_flags[*]}" > "${R_MAKEVARS_SITE}"
 
 # Install the package to the common temp library.
+assert_default_namespace "${TMP_SRC_PKG}/NAMESPACE"
 silent "${R}" CMD INSTALL "${INSTALL_ARGS}" --built-timestamp='' --no-lock --build --library="${TMP_LIB}" "${TMP_SRC_PKG}"
 rm -rf "${PKG_LIB_PATH:?}/${PKG_NAME}" # Delete empty directories to make way for move.
 mv -f "${TMP_LIB}/${PKG_NAME}" "${PKG_LIB_PATH}/"
