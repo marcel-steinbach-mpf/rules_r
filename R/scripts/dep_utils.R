@@ -8,14 +8,14 @@ printPackageDiff <- function(base_package_list, new_package_list) {
 
     joined <- merge(x = resolved.packages, y = configred.packages, by = "Package", all.x = TRUE)
 
-    new <- joined[ is.na(joined$Version.y) ,1:5]
+    new <- joined[ is.na(joined$Version.y) ,1:ncol(configred.packages)]
     write.table(new, file='new_packages.csv', col.names=FALSE, row.names=FALSE, sep=",")
 
 
 
     matched <- joined[ !is.na(joined$Version.y),]
     updated <- matched[ matched$Version.y != matched$Version.x , c(1:6)]
-    write.table(updated[, 1:5], file='updated_packages.csv', col.names=FALSE, row.names=FALSE, sep=",")
+    write.table(updated[, 1:ncol(configred.packages)], file='updated_packages.csv', col.names=FALSE, row.names=FALSE, sep=",")
 
 
     updated.summary <- updated[, c(1,6,2)]
@@ -53,19 +53,28 @@ writePackageDiff <- function(base_package_list, new_package_list, output) {
     resolved.packages <- read.csv(new_package_list, header=TRUE, sep=",")
 
     result <- merge(x = configred.packages, y = resolved.packages,  by = "Package", all.x = TRUE, all.y = TRUE)
-    
+
+    col_old <- colnames(result)
+    col_new <- gsub(pattern = ".x",replacement = "", x  = col_old)
+    colnames(result) <- col_new
+
     for (row in 1:nrow(result)) {
         # new packages
-        if (is.na(result[row, "Version.x"]) ||
-        (!is.na(result[row, "Version.y"]) && result[row, "Version.x"] != result[row, "Version.y"])) {
-            result[row, "Version.x"] = result[row, "Version.y"]
-            result[row, "sha256.x"] = result[row, "sha256.y"]
-            result[row, "mac_3_4_sha256.x"] = result[row, "mac_3_4_sha256.y"]
-            result[row, "mac_3_5_sha256.x"] = result[row, "mac_3_5_sha256.y"]
+        if (is.na(result[row, "Version"]) ||
+        (!is.na(result[row, "Version.y"]) && result[row, "Version"] != result[row, "Version.y"])) {
+            result[row, "Version"] = result[row, "Version.y"]
+            result[row, "sha256"] = result[row, "sha256.y"]
+            if("mac_3_4_sha256.y" %in% colnames(result)) {
+                result[row, "mac_3_4_sha256"] = result[row, "mac_3_4_sha256.y"]
+            }
+            if("mac_3_4_sha256.y" %in% colnames(result)) {
+                result[row, "mac_3_5_sha256"] = result[row, "mac_3_5_sha256.y"]
+            }
+
         }
     }
 
-    write.table(result[, 1:5], file=output, col.names=TRUE, row.names=FALSE, sep=",")
+    write.table(result[, 1:ncol(configred.packages)], file=output, col.names=TRUE, row.names=FALSE, sep=",")
 }
 
 #printPackageDiff("external_packages.csv", "external_packages_caret.csv")
