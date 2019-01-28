@@ -16,19 +16,16 @@ load("@com_grail_rules_r//R:defs.bzl", "r_pkg")
 
 r_pkg(
     name = "genfiles",
-    srcs = [":description_file"] + glob(
+    srcs = [":DESCRIPTION"] + glob(
         ["**"],
-        exclude = [
-            "BUILD"
-        ],
+    ),
+    roclets=['namespace'],
+    roclets_deps=['@R_roxygen2','@R_devtools'],
     )
-)
 
 genrule(
-    name = "description_file",
-    srcs = [
-        "DESCRIPTION.tmpl",
-    ],
-    outs = ["DESCRIPTION"],
-    cmd = "cat $< > $@"
-)
+     name = "description_file",
+     outs = ["DESCRIPTION"],
+     srcs = ["DESCRIPTION.tmpl"],
+     cmd = "cp $(SRCS) $@",
+ )
