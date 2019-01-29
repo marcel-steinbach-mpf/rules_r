@@ -49,7 +49,9 @@ def _impl(ctx):
             "{repo_package_list}": "repo_pkgs_%s.csv" % ctx.attr.name, # % (output_pkgs.short_path, ctx.attr.name),
             "{applied_package_list}": "final_pkgs_%s.csv"  % ctx.attr.name, # % (output_pkgs.short_path, ctx.attr.name),
             "{pkgs}": ",".join(ctx.attr.pkgs),
-            "{versions}": ",".join(ctx.attr.versions)
+            "{versions}": ",".join(ctx.attr.versions),
+            "{all_pkgs}": "Y" if ctx.attr.all else "",
+
         },
         is_executable = True,
     )
@@ -79,6 +81,11 @@ r_check_pkgs = rule(
         "versions": attr.string_list(
             mandatory = False,
             doc = "Desired package versions. This can be overriden by -v option",
+        ),
+        "all": attr.bool(
+            mandatory = False,
+            default = False,
+            doc = "Update all packages designated in base_pkg_list. This parameter has lower precendence than 'pkgs' and ignored if 'pkgs' is set. Use -a option on runtime.",
         ),
         "remote_repos": attr.string_dict(
             default = {"CRAN": "https://cloud.r-project.org"},
