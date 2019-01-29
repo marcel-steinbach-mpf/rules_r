@@ -5,7 +5,8 @@ set -euo pipefail
 help() {
   echo 'Usage: bazel run target_label -- [-p pkg_list] [-v ver_list]'
   echo '  -p  pkg_list is a comma-separated list of the packages to be checked'
-  echo '  -v  ver_list is a comma-separated list of the desired versions of the packages in pkg_list', the latest versions are taken if this option is missing
+  echo '  -v  ver_list is a comma-separated list of the desired versions of the packages in pkg_list, the latest versions are taken if this option is missing'
+  echo '  -a  update all packages designated in pkg_list. This option is ignored if pkg_list is specified'
 }
 
 REPO_DIR="stage-repo"
@@ -23,24 +24,32 @@ BASE_OUTPUT_PATH="{base_output_path}"
 PKGS="{pkgs}"
 PKG_VERSIONS="{versions}"
 EXTRA_R_LIBS="{extra_r_libs}"
+ALL_PKGS="{all_pkgs}"
 
 export R_LIBS="${R_LIBS:-""}:${EXTRA_R_LIBS}"
 
 rm -rf "${OUTPUT_PKGS_PATH}" "${REPO_DIR}"
 mkdir -m 755 -p "${OUTPUT_PKGS_PATH}" "${REPO_DIR}"
 
-while getopts "p:v:h" opt; do
+while getopts "p:v:ha" opt; do
   case "$opt" in
     "p") PKGS="${OPTARG}";;
     "v") PKG_VERSIONS="${OPTARG}";;
     "h") help; exit 0;;
+    "a") ALL_PKGS="Y";;
     "?") error "invalid option: -$OPTARG"; help; exit 1;;
   esac
 done
 
 if [ -z "$PKGS" ]; then
-    echo "pkg_list not set"
-    help; exit 1;
+
+    if [ -z "$ALL_PKGS" ]; then
+        echo "pkg_list not set"
+        help; exit 1;
+    fi
+
+    PKGS=$(cat $PACKAGE_LIST | sed -e "1d" | awk -F, '{ print $1 }' | tr '\n' ',' | tr -d '"')
+
 fi
 
 if [ -n "$PKG_VERSIONS" ]; then
