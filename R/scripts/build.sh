@@ -103,6 +103,15 @@ if [[ "${CONFIG_OVERRIDE:-}" ]]; then
   cp "${CONFIG_OVERRIDE}" "${PKG_SRC_DIR}/configure"
 fi
 
+assert_default_namespace() {
+    NAMESPACE_FILE="$1"
+    if [[ ! -f "$NAMESPACE_FILE" ]]; then
+      silent "${RSCRIPT}" - <<EOF 
+tools:::writeDefaultNamespace('${NAMESPACE_FILE}')
+EOF
+    fi
+}
+
 copy_inst_files() {
   local IFS=","
   for copy_pair in ${INST_FILES_MAP}; do
@@ -185,6 +194,8 @@ PKG_GENFILES_PATH="${GENFILES_DIR_PATH}/${PKG_SRC_DIR}"
 if [[ -d "${PKG_GENFILES_PATH}" && ! -z "$(ls -A ${PKG_GENFILES_PATH})" ]]; then
     silent cp -vR "${PKG_GENFILES_PATH}"/* ${TMP_SRC_PKG}
 fi
+
+assert_default_namespace "${TMP_SRC_PKG}/NAMESPACE"
 
 # Reset mtime for all files. R's help DB is specially sensitive to timestamps of .Rd files in man/.
 TZ=UTC find "${TMP_SRC_PKG}" -type f -exec touch -t 197001010000 {} \+
