@@ -42,7 +42,7 @@ def _impl(ctx):
         template = ctx.file._check_pkgs_sh_tpl,
         output = script,
         substitutions = {
-            "{extra_r_libs}": ":".join([d.short_path for d in library_deps["lib_dirs"]]),
+            "{extra_r_libs}": ":".join([d.short_path for d in library_deps.lib_dirs]),
             "{repo_mgmt_script}": repo_mgmt_script.short_path,
             "{dep_utils_script}": dep_utils_script.short_path,
             "{package_list}": ctx.file.base_pkg_list.short_path,
@@ -57,7 +57,7 @@ def _impl(ctx):
         is_executable = True,
     )
 
-    runfiles =  ctx.runfiles(files = library_deps["lib_dirs"] + [repo_mgmt_script, dep_utils_script, ctx.file.base_pkg_list])
+    runfiles =  ctx.runfiles(files = library_deps.lib_dirs + [repo_mgmt_script, dep_utils_script, ctx.file.base_pkg_list])
     return struct(
             providers = [
                 DefaultInfo(
