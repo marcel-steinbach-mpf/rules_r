@@ -1,6 +1,7 @@
 load(
     "@com_grail_rules_r//R/internal:common.bzl", _library_deps = "library_deps"
 )
+load("@com_grail_rules_r//R:providers.bzl", "RPackage")
 
 _repo_management = attr.label(
     default = "@com_grail_rules_r//scripts:repo_management.R",
@@ -19,7 +20,7 @@ _check_pkgs_sh_tpl = attr.label(
     default = "@com_grail_rules_r//R/scripts:check_pkgs.sh.tpl",
 )
 
-load("@com_grail_rules_r//R:providers.bzl", "RPackage")
+
 
 _script_deps = attr.label_list(
     providers = [RPackage],
