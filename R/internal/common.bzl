@@ -18,17 +18,6 @@ load(
 )
 load("@com_grail_rules_r//R:providers.bzl", "RPackage")
 
-R = [
-    "R",
-    "--vanilla",
-    "--slave",
-]
-
-Rscript = [
-    "Rscript",
-    "--vanilla",
-]
-
 def package_dir(ctx):
     # Relative path to target directory.
 
@@ -46,13 +35,13 @@ def env_vars(env_vars):
 def executables(labels):
     # depset of executable files for this list of labels.
 
-    return depset([label.files_to_run.executable for label in labels])
+    return [label.files_to_run.executable for label in labels]
 
 def runtime_path_export(executables):
     # ":" separated path to directories of desired tools, for use in executables.
 
     exe_dirs = ["$(cd $(dirname %s); echo \"${PWD}\")" %
-                exe.short_path for exe in executables]
+                exe.short_path for exe in executables.to_list()]
     if exe_dirs:
         return "export PATH=\"" + ":".join(exe_dirs + ["${PATH}"]) + "\""
     else:
@@ -62,7 +51,7 @@ def build_path_export(executables):
     # ":" separated path to directories of desired tools, for use in build actions.
 
     exe_dirs = ["$(cd $(dirname %s); echo \"${PWD}\")" %
-                exe.path for exe in executables]
+                exe.path for exe in executables.to_list()]
     if exe_dirs:
         return "export PATH=\"" + ":".join(exe_dirs + ["${PATH}"]) + "\""
     else:
@@ -73,27 +62,31 @@ def library_deps(target_deps):
     # Returns information about all dependencies of this package.
 
     # Transitive closure of all package dependencies.
-    transitive_pkg_deps = depset()
-    transitive_tools = depset()
+    direct_deps = []
+    transitive_pkg_deps = []
+    transitive_tools = []
     for target_dep in target_deps:
-        transitive_pkg_deps += (target_dep[RPackage].transitive_pkg_deps + depset([target_dep[RPackage]]))
-        transitive_tools += target_dep[RPackage].transitive_tools
+        direct_deps.append(target_dep[RPackage])
+        transitive_pkg_deps.append(target_dep[RPackage].transitive_pkg_deps)
+        transitive_tools.append(target_dep[RPackage].transitive_tools)
+    transitive_pkg_deps = depset(direct_deps, transitive = transitive_pkg_deps)
+    transitive_tools = depset(transitive = transitive_tools)
 
     # Individual R library directories.
     lib_dirs = []
     gcno_dirs = []
 
-    for pkg_dep in transitive_pkg_deps:
+    for pkg_dep in transitive_pkg_deps.to_list():
         lib_dirs.append(pkg_dep.pkg_lib_dir)
         if pkg_dep.pkg_gcno_dir:
             gcno_dirs.append(pkg_dep.pkg_gcno_dir)
 
-    return {
-        "transitive_pkg_deps": transitive_pkg_deps,
-        "transitive_tools": transitive_tools,
-        "lib_dirs": lib_dirs,
-        "gcno_dirs": gcno_dirs,
-    }
+    return struct(
+        gcno_dirs = gcno_dirs,
+        lib_dirs = lib_dirs,
+        transitive_pkg_deps = transitive_pkg_deps,
+        transitive_tools = transitive_tools,
+    )
 
 def layer_library_deps(ctx, library_deps):
     # We partition the library runfiles on the basis of whether origin repo of
@@ -103,9 +96,27 @@ def layer_library_deps(ctx, library_deps):
 
     lib_files = {"external": [], "internal": []}
 
-    for pkg_dep in library_deps["transitive_pkg_deps"]:
+    for pkg_dep in library_deps.transitive_pkg_deps.to_list():
         pkg_container_layer = "external" if pkg_dep.external_repo else "internal"
         pkg_dir_path = ["%s/%s" % (pkg_dep.pkg_lib_dir.path, pkg_dep.pkg_name)]
         lib_files[pkg_container_layer].append(pkg_dep.pkg_lib_dir)
 
     return lib_files
+
+def makevars_files(makevars_site, makevars_user):
+    files = []
+    if makevars_site:
+        files.append(makevars_site)
+    if makevars_user:
+        files.append(makevars_user)
+    return files
+
+def dict_to_r_vec(d):
+    """Convert a skylark dict to a named character vector for R."""
+
+    return ", ".join([k + "=" + v for k, v in d.items()])
+
+def quote_dict_values(d):
+    """Quote the values in the dictionary."""
+
+    return {k: "'%s'" % v for k, v in d.items()}

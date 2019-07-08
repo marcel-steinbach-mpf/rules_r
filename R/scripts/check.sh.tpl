@@ -44,11 +44,21 @@ C_LIBS_FLAGS="{c_libs_flags}"
 C_CPP_FLAGS="{c_cpp_flags}"
 export PKG_LIBS="${C_LIBS_FLAGS//_EXEC_ROOT_/${EXEC_ROOT}/}"
 export PKG_CPPFLAGS="${C_CPP_FLAGS//_EXEC_ROOT_/${EXEC_ROOT}/}"
-export R_MAKEVARS_USER="${EXEC_ROOT}/{r_makevars_user}"
+
+if [[ "{r_makevars_site}" ]]; then
+  tmp_mkvars="$(mktemp)"
+  sed -e "s@_EXEC_ROOT_@${EXEC_ROOT}/@" "${EXEC_ROOT}/{r_makevars_site}" > "${tmp_mkvars}"
+  export R_MAKEVARS_SITE="${tmp_mkvars}"
+fi
+if [[ "{r_makevars_user}" ]]; then
+  tmp_mkvars="$(mktemp)"
+  sed -e "s@_EXEC_ROOT_@${EXEC_ROOT}/@" "${EXEC_ROOT}/{r_makevars_user}" > "${tmp_mkvars}"
+  export R_MAKEVARS_USER="${tmp_mkvars}"
+fi
 
 R_LIBS="{lib_dirs}"
 R_LIBS="${R_LIBS//_EXEC_ROOT_/${EXEC_ROOT}/}"
 export R_LIBS
 export R_LIBS_USER=dummy
 
-exec R CMD check {check_args} {pkg_src_archive}
+exec {R} CMD check {check_args} {pkg_src_archive}

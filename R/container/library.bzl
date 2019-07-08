@@ -46,30 +46,34 @@ def _library_layer_impl(ctx):
     lib_path = lib_path if lib_path.startswith("/") else "/" + lib_path
     return _layer.implementation(ctx, file_map = file_map, env = {"R_LIBS_USER": lib_path})
 
+_library_layer_attrs = dict(_layer.attrs)
+
+_library_layer_attrs.update({
+    "library": attr.label(
+        providers = [RLibrary],
+        doc = "The r_library target that this layer will capture.",
+    ),
+    "library_path": attr.string(
+        doc = ("Subdirectory within the container where all the " +
+               "packages are installed"),
+    ),
+    "tools_install_path": attr.string(
+        doc = ("Subdirectory within the container where all the " +
+               "tools are installed"),
+    ),
+    "layer_type": attr.string(
+        doc = "The output group type of the files that this layer will capture.",
+    ),
+})
+
 # Rule with a LayerInfo provider; targets of this type can be supplied to
 # container_image targets.
 # See https://github.com/bazelbuild/rules_docker/issues/385
 _r_library_layer = rule(
-    attrs = _layer.attrs + {
-        "library": attr.label(
-            providers = [RLibrary],
-            doc = "The r_library target that this layer will capture.",
-        ),
-        "library_path": attr.string(
-            doc = ("Subdirectory within the container where all the " +
-                   "packages are installed"),
-        ),
-        "tools_install_path": attr.string(
-            doc = ("Subdirectory within the container where all the " +
-                   "tools are installed"),
-        ),
-        "layer_type": attr.string(
-            doc = "The output group type of the files that this layer will capture.",
-        ),
-    },
-    toolchains=["@io_bazel_rules_docker//toolchains/docker:toolchain_type"],
+    attrs = _library_layer_attrs,
     executable = False,
     outputs = _layer.outputs,
+    toolchains = ["@io_bazel_rules_docker//toolchains/docker:toolchain_type"],
     implementation = _library_layer_impl,
 )
 
@@ -110,12 +114,12 @@ def r_library_image(**kwargs):
     kwargs.setdefault("tools_install_path", "usr/local/bin")
     [_r_library_layer(
         name = layer,
+        directory = kwargs["directory"],
+        layer_type = layer_type,
         library = kwargs["library"],
         library_path = kwargs["library_path"],
-        tools_install_path = kwargs["tools_install_path"],
-        layer_type = layer_type,
-        directory = kwargs["directory"],
         tags = ["manual"],
+        tools_install_path = kwargs["tools_install_path"],
     ) for (layer_type, layer) in _layers.items()]
     kwargs.pop("library")
     kwargs.pop("library_path")
@@ -123,4 +127,9 @@ def r_library_image(**kwargs):
 
     kwargs.setdefault("layers", [])
     kwargs["layers"].extend(_layers.values())
+
+    # Set "manual" by default to not build images in CI, etc.
+    kwargs.setdefault("tags", [])
+    kwargs["tags"].append("manual")
+
     _container_image(**kwargs)

@@ -15,6 +15,18 @@
 
 set -euo pipefail
 
+# Check version
+# TODO: Remove this check when the system state is unconditionally checked.
+if [[ "${REQUIRED_VERSION:-}" ]]; then
+  r_version="$(${R} \
+    -e 'v <- getRversion()' \
+    -e 'cat(v$major, v$minor, sep=".")')"
+  if [[ "${REQUIRED_VERSION}" != "${r_version}" ]]; then
+    >&2 printf "Required R version is %s; you have %s\\n" "${REQUIRED_VERSION}" "${r_version}"
+    exit 1
+  fi
+fi
+
 EXEC_ROOT=$(pwd -P)
 
 TMP_FILES=() # Temporary files to be cleaned up before exiting the script.
@@ -125,30 +137,23 @@ export PKG_LIBS="${C_SO_LD_FLAGS:-}${C_LIBS_FLAGS//_EXEC_ROOT_/${EXEC_ROOT}/}"
 export PKG_CPPFLAGS="${C_CPP_FLAGS//_EXEC_ROOT_/${EXEC_ROOT}/}"
 export PKG_FCFLAGS="${PKG_CPPFLAGS}"  # Fortran 90/95
 export PKG_FFLAGS="${PKG_CPPFLAGS}"   # Fortran 77
-export R_MAKEVARS_USER="${EXEC_ROOT}/${R_MAKEVARS_USER}"
+
+if [[ "${R_MAKEVARS_SITE:-}" ]]; then
+  tmp_mkvars="$(mktemp)"
+  sed -e "s@_EXEC_ROOT_@${EXEC_ROOT}/@" "${EXEC_ROOT}/${R_MAKEVARS_SITE}" > "${tmp_mkvars}"
+  export R_MAKEVARS_SITE="${tmp_mkvars}"
+fi
+if [[ "${R_MAKEVARS_USER:-}" ]]; then
+  tmp_mkvars="$(mktemp)"
+  sed -e "s@_EXEC_ROOT_@${EXEC_ROOT}/@" "${EXEC_ROOT}/${R_MAKEVARS_USER}" > "${tmp_mkvars}"
+  export R_MAKEVARS_USER="${tmp_mkvars}"
+fi
 
 # Use R_LIBS in place of R_LIBS_USER because on some sytems (e.g., Ubuntu),
 # R_LIBS_USER is parameter substituted with a default in .Renviron, which
 # imposes length limits.
 export R_LIBS="${R_LIBS_ROCLETS//_EXEC_ROOT_/${EXEC_ROOT}/}"
 export R_LIBS_USER=dummy
-
-# Copy generated files to install path
-# TODO: Ideally, everything is done in a temporary path so that in standalone mode, we're not going to pollute the workspace.
-PKG_GENFILES_PATH="${GENFILES_DIR_PATH}/${PKG_SRC_DIR}"
-if [[ -d "${PKG_GENFILES_PATH}" && ! -z "$(ls -A ${PKG_GENFILES_PATH})" ]]; then
-    silent cp -vR "${PKG_GENFILES_PATH}"/* ${PKG_SRC_DIR}
-fi
-
-if "${BUILD_SRC_ARCHIVE:-"false"}"; then
-  silent "${R}" CMD build "${BUILD_ARGS}" "${PKG_SRC_DIR}"
-  mv "${PKG_NAME}"*.tar.gz "${PKG_SRC_ARCHIVE}"
-
-  trap - EXIT
-  cleanup
-  exit
-fi
-
 
 if [[ "${ROCLETS}" ]]; then
   silent "${RSCRIPT}" - <<EOF
@@ -168,26 +173,9 @@ export R_LIBS="${R_LIBS_DEPS//_EXEC_ROOT_/${EXEC_ROOT}/}"
 
 ${RSCRIPT} -e 'if ( length(grep("${R_LIBS", Sys.getenv("R_LIBS"), fixed = TRUE)) != 0) { write("R_LIBS appears to have ${R_LIBS} placeholders what indirectly points out that you exceeded 10k-character limit and R_LIBS has lost. Good thing to do right now is to consider removing any placeholders out of R_LIBS. Good luck!", stderr()); quit(status=1) }'
 
-
-# Easy case -- we allow timestamp and install paths to be stamped inside the package files.
-if ! ${REPRODUCIBLE_BUILD}; then
-  assert_default_namespace "${PKG_SRC_DIR}/NAMESPACE"
-  silent "${R}" CMD INSTALL "${INSTALL_ARGS}" --build --library="${PKG_LIB_PATH}" \
-    "${PKG_SRC_DIR}"
-  mv "${PKG_NAME}"*gz "${PKG_BIN_ARCHIVE}"  # .tgz on macOS and .tar.gz on Linux.
-
-  if "${INSTRUMENTED}"; then
-    add_instrumentation_hook "${PKG_SRC_DIR}"
-  fi
-
-  trap - EXIT
-  cleanup
-  exit
-fi
-
-# Not so easy case -- we make builds reproducible by asking R to use a constant
-# timestamp, and by installing the packages to the same destination, from the
-# same source path, to get reproducibility in embedded paths.
+# We make builds reproducible by asking R to use a constant timestamp, and by
+# installing the packages to the same destination, from the same source path,
+# to get reproducibility in embedded paths.
 LOCK_DIR="/tmp/bazel/R/locks"
 TMP_LIB="/tmp/bazel/R/lib_${PKG_NAME}"
 TMP_SRC="/tmp/bazel/R/src"
@@ -201,6 +189,16 @@ mkdir -p "${TMP_SRC_PKG}"
 rm -rf "${TMP_SRC_PKG}" 2>/dev/null || true
 cp -a "${EXEC_ROOT}/${PKG_SRC_DIR}" "${TMP_SRC_PKG}"
 TMP_FILES+=("${TMP_SRC_PKG}")
+
+PKG_GENFILES_PATH="${GENFILES_DIR_PATH}/${PKG_SRC_DIR}"
+if [[ -d "${PKG_GENFILES_PATH}" && ! -z "$(ls -A ${PKG_GENFILES_PATH})" ]]; then
+    silent cp -vR "${PKG_GENFILES_PATH}"/* ${TMP_SRC_PKG}
+fi
+
+assert_default_namespace "${TMP_SRC_PKG}/NAMESPACE"
+
+# Reset mtime for all files. R's help DB is specially sensitive to timestamps of .Rd files in man/.
+TZ=UTC find "${TMP_SRC_PKG}" -type f -exec touch -t 197001010000 {} \+
 
 # Override flags to the compiler for reproducible builds.
 R_MAKEVARS_SITE="$(mktemp)"
@@ -216,9 +214,18 @@ repro_flags=(
 )
 echo "CPPFLAGS += ${repro_flags[*]}" > "${R_MAKEVARS_SITE}"
 
+# Check if we just need to build the source archive.
+if "${BUILD_SRC_ARCHIVE:-"false"}"; then
+  silent "${R}" CMD build --built-timestamp='' "${BUILD_ARGS}" "${PKG_SRC_DIR}"
+  mv "${PKG_NAME}"*.tar.gz "${PKG_SRC_ARCHIVE}"
+
+  trap - EXIT
+  cleanup
+  exit
+fi
+
 # Install the package to the common temp library.
-assert_default_namespace "${TMP_SRC_PKG}/NAMESPACE"
-silent "${R}" CMD INSTALL "${INSTALL_ARGS}" --built-timestamp='' --no-lock --build --library="${TMP_LIB}" "${TMP_SRC_PKG}"
+silent "${R}" CMD INSTALL --built-timestamp='' "${INSTALL_ARGS}" --no-lock --build --library="${TMP_LIB}" "${TMP_SRC_PKG}"
 rm -rf "${PKG_LIB_PATH:?}/${PKG_NAME}" # Delete empty directories to make way for move.
 mv -f "${TMP_LIB}/${PKG_NAME}" "${PKG_LIB_PATH}/"
 mv "${PKG_NAME}"*gz "${PKG_BIN_ARCHIVE}"  # .tgz on macOS and .tar.gz on Linux.

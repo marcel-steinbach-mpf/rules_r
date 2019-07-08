@@ -1,35 +1,41 @@
 R Rules for Bazel [![Build Status](https://travis-ci.org/grailbio/rules_r.svg?branch=master)](https://travis-ci.org/grailbio/rules_r)
 =================
 
-<div class="toc">
-  <h4>Rules</h4>
-  <ul>
-    <li><a href="#r_pkg">r_pkg</a></li>
-    <li><a href="#r_library">r_library</a></li>
-    <li><a href="#r_unit_test">r_unit_test</a></li>
-    <li><a href="#r_pkg_test">r_pkg_test</a></li>
-    <li><a href="#r_binary">r_binary</a></li>
-    <li><a href="#r_test">r_test</a></li>
-    <li><a href="#r_check_pkgs">r_check_pkgs</a></li>
-  </ul>
-</div>
+#### General Information
+- [Overview](#overview)
+- [Getting Started](#getting-started)
+- [Configuration](#configuration)
+- [External Packages](#external-packages)
+- [Examples](#examples)
+- [Contributing](#contributing)
+- [Known Issues](#known-issues)
 
-<div class="toc">
-  <h4>Workspace Rules</h4>
-  <ul>
-    <li><a href="#r_repository">r_repository</a></li>
-    <li><a href="#r_repository_list">r_repository_list</a></li>
-  </ul>
-</div>
+#### Rules
+- [r_pkg](#r_pkg)
+- [r_library](#r_library)
+- [r_unit_test](#r_unit_test)
+- [r_pkg_test](#r_pkg_test)
+- [r_binary](#r_binary)
+- [r_test](#r_test)
+- [r_toolchain](#r_toolchain)
+- [r_check_pkgs](#r_check_pkgs)
 
-<div class="toc">
-  <h4>Convenience Macros</h4>
-  <ul>
-    <li><a href="#r_package">r_package</a></li>
-    <li><a href="#r_package_with_test">r_package_with_test</a></li>
-  </ul>
-</div>
+#### Repository Rules
+- [r_repository](#r_repository)
+- [r_repository_list](#r_repository_list)
+- [r_rules_dependencies](#r_rules_dependencies)
+- [r_coverage_dependencies](#r_coverage_dependencies)
+- [r_register_toolchains](#r_register_toolchains)
 
+#### Container Rules
+- [r_library_image](R/container/README.md#r_library_image)
+- [r_binary_image](R/container/README.md#r_binary_image)
+
+#### Convenience Macros
+- [r_package](#r_package)
+- [r_package_with_test](#r_package_with_test)
+
+<a name="overview"></a>
 ## Overview
 
 These rules are used for building [R][r] packages with Bazel. Although R has an
@@ -39,11 +45,15 @@ Bazel, over a custom solution of tracking the package dependency graph and
 triggering builds accordingly on each commit, is that R packages can be built
 and tested as part of one build system in multi-language monorepos.
 
+These rules are mature for production use. We use these rules internally at
+GRAIL to build 400+ R packages from CRAN and Bioconductor.
+
+<a name="getting-started"></a>
 ## Getting started
 
 The following assumes that you are familiar with how to use Bazel in general.
 
-In order to use the rules, you must have bazel 0.10.0 or later and add the
+In order to use the rules, you must have bazel 0.18.1 or later and add the
 following to your WORKSPACE file:
 
 ```python
@@ -54,9 +64,11 @@ http_archive(
     urls = ["https://github.com/grailbio/rules_r/archive/master.tar.gz"],
 )
 
-load("@com_grail_rules_r//R:dependencies.bzl", "r_rules_dependencies")
+load("@com_grail_rules_r//R:dependencies.bzl", "r_register_toolchains", "r_rules_dependencies")
 
 r_rules_dependencies()
+
+r_register_toolchains()
 ```
 
 You can load the rules in your BUILD file like so:
@@ -75,6 +87,7 @@ and
 load("@com_grail_rules_r//R:defs.bzl", "r_package_with_test")
 ```
 
+<a name="configuration"></a>
 ## Configuration
 
 These rules assume that you have R installed on your system (we recommend 3.4.3
@@ -82,9 +95,8 @@ or above), and can be located using the `PATH` environment variable.
 
 For each package, you can also specify a different Makevars file that can be
 used to have finer control over native code compilation. For macOS, the
-[Makevars][Makevars] file used as default helps find `gfortran`. To change the
-defaults for your repository, you can provide arguments `makevars_darwin`
-and/or `makevars_linux` to `r_rules_dependencies`.
+[Makevars][Makevars] file used as default helps find `gfortran`. The site-wide
+Makevars files are configured by default in the toolchains.
 
 For _macOS_, this setup will help you cover the requirements for a large number
 of packages:
@@ -121,6 +133,7 @@ Rscript \
 For more details on how R searches different paths for packages, see
 [libPaths][libPaths].
 
+<a name="external-packages"></a>
 ## External packages
 
 To depend on external packages from CRAN and other remote repos, you can define the
@@ -170,6 +183,7 @@ $ bazel query 'filter(":R_", //external:*)'
 NOTE: Periods ('.') in the package names are replaced with underscores ('_')
 because bazel does not allow periods in repository names.
 
+<a name="examples"></a>
 ## Examples
 
 Some examples are available in the tests directory of this repo.
@@ -180,21 +194,34 @@ Some examples are available in the tests directory of this repo.
 Also see [Razel scripts][scripts] that provide utility functions to generate `BUILD` files
 and `WORKSPACE` rules for external packages.
 
-## Docker
+<a name="contributing"></a>
+## Contributing
 
-See [container support][docker].
+Contributions are most welcome. Please submit a pull request giving the owners
+of this github repo access to your branch for minor style related edits, etc. We recommend
+opening an issue first to discuss the nature of your change before beginning work on it.
 
+<a name="known-issues"></a>
+## Known Issues
+
+Please check open issues at the github repo.
+
+
+# Rules
 
 <a name="r_pkg"></a>
 ## r_pkg
 
 ```python
 r_pkg(srcs, pkg_name, deps, cc_deps, build_args, install_args, config_override, roclets,
-      roclets_deps, makevars_user, env_vars, inst_files, tools, build_tools)
+      roclets_deps, makevars, env_vars, inst_files, tools, build_tools)
 ```
 
 Rule to install the package and its transitive dependencies in the Bazel
 sandbox, so it can be depended upon by other package builds.
+
+The builds produced from this rule are tested to be byte-for-byte reproducible
+with the same R installation.
 
 <table class="table table-condensed table-bordered table-params">
   <colgroup>
@@ -301,10 +328,10 @@ sandbox, so it can be depended upon by other package builds.
       </td>
     </tr>
     <tr>
-      <td><code>makevars_user</code></td>
+      <td><code>makevars</code></td>
       <td>
-        <p><code>File; default to @com_grail_rules_r_makevars//:Makevars</code></p>
-        <p>User level Makevars file.</p>
+        <p><code>File; optional</code></p>
+        <p>Additional Makevars file supplied as R_MAKEVARS_USER.</p>
       </td>
     </tr>
     <tr>
@@ -396,6 +423,10 @@ r_unit_test(pkg, suggested_deps)
 ```
 
 Rule to keep all deps in the sandbox, and run the provided R test scripts.
+
+When run with `bazel coverage`, this rule will also produce a coverage report
+in Cobertura XML format. The coverage report will contain coverage for R code
+in the package, and C/C++ code in the `src` directory of R packages.
 
 <table class="table table-condensed table-bordered table-params">
   <colgroup>
@@ -505,7 +536,7 @@ sandbox.
 ## r_binary
 
 ```python
-r_binary(name, srcs, deps, data, env_vars, tools, rscript_args)
+r_binary(name, src, deps, data, env_vars, tools, rscript_args, script_args)
 ```
 
 Build a wrapper shell script for running an executable which will have all the
@@ -565,10 +596,17 @@ the runfiles of the root executable.
     <tr>
       <td><code>rscript_args</code></td>
       <td>
-        <p><code>String; optional</code></p>
+        <p><code>List of strings; optional</code></p>
         <p>If src file does not have executable permissions, arguments for the
            Rscript interpreter. We recommend using the shebang line and giving
            your script execute permissions instead of using this.</p>
+      </td>
+    </tr>
+    <tr>
+      <td><code>script_args</code></td>
+      <td>
+        <p><code>List of strings; optional</code></p>
+        <p>A list of arguments to pass to the src script.</p>
       </td>
     </tr>
   </tbody>
@@ -578,11 +616,114 @@ the runfiles of the root executable.
 ## r_test
 
 ```python
-r_test(name, srcs, deps, data, env_vars, tools, rscript_args)
+r_test(name, src, deps, data, env_vars, tools, rscript_args, script_args)
 ```
 
-This is idential to <a href="#r_binary">r_binary</a> but is run as a test.
+This is identical to [r_binary](#r_binary) but is run as a test.
 
+<a name="r_markdown"></a>
+## r_markdown
+
+```python
+r_markdown(name, src, deps, data, env_vars, tools, rscript_args, script_args,
+render_function="rmarkdown::render", input_argument="input", output_dir_argument="output_dir",
+render_args)
+```
+
+This rule renders an R markdown through generating a stub to call the render
+function. The render function and the argument names for the function are
+default set for `rmarkdown::render` but can be customized. Note that
+`render_args` will need to be quoted appropriately if set. This rule can be
+used wherever an [r_binary](#r_binary) rule can be used.
+
+If an argument is given on the command line when running the target, it will be
+the output directory, else the output directory will be the default output
+directory of the render function, typically the same directory as the input
+file.
+
+<a name="r_toolchain"></a>
+## r_toolchain
+
+```python
+r_toolchain(r, rscript, version, args, makevars_site, env_vars, tools, files)
+```
+
+Toolchain to specify the tools and environment for performing build actions.
+Also see [r_register_toolchains](#r_register_toolchains) for how
+to configure the default registered toolchains.
+
+<table class="table table-condensed table-bordered table-params">
+  <colgroup>
+    <col class="col-param" />
+    <col class="param-description" />
+  </colgroup>
+  <thead>
+    <tr>
+      <th colspan="2">Attributes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>r</code></td>
+      <td>
+        <p><code>String, default R</code></p>
+        <p>Path to R.</p>
+      </td>
+    </tr>
+    <tr>
+      <td><code>rscript</code></td>
+      <td>
+        <p><code>String, default Rscript</code></p>
+        <p>Path to Rscript.</p>
+      </td>
+    </tr>
+    <tr>
+      <td><code>version</code></td>
+      <td>
+        <p><code>String; optional</code></p>
+        <p>If provided, ensure version of R matches this string in x.y form.</p>
+      </td>
+    </tr>
+    <tr>
+      <td><code>args</code></td>
+      <td>
+        <p><code>List of strings; default ["--no-save", "--no-site-file", "--no-environ"]</code></p>
+        <p>Arguments to R and Rscript, in addition to `--slave --no-restore --no-init-file`.</p>
+      </td>
+    </tr>
+    <tr>
+      <td><code>makevars_site</code></td>
+      <td>
+        <p><code>Label; optional</code></p>
+        <p>Site-wide Makevars file.</p>
+      </td>
+    </tr>
+    <tr>
+      <td><code>env_vars</code></td>
+      <td>
+        <p><code>Dictionary; optional</code></p>
+        <p>Environment variables for BUILD actions.</p>
+      </td>
+    </tr>
+    <tr>
+      <td><code>tools</code></td>
+      <td>
+        <p><code>List of labels; optional</code></p>
+        <p>Additional tools to make available in PATH.</p>
+      </td>
+    </tr>
+    <tr>
+      <td><code>files</code></td>
+      <td>
+        <p><code>List of labels; optional</code></p>
+        <p>Additional files available to the BUILD actions.</p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+
+# Repository Rules
 
 <a name="r_check_pkgs"></a>
 ## r_check_pkgs
@@ -764,6 +905,103 @@ as `r_repositories()`, for `r_repository` definitions for packages in
 </table>
 
 
+<a name="r_rules_dependencies"></a>
+## r_rules_dependencies
+
+```python
+r_rules_dependencies()
+```
+
+Repository rule that provides repository definitions for dependencies of the
+BUILD system. One such dependency is the site-wide Makevars file for macOS.
+
+
+<a name="r_coverage_dependencies"></a>
+## r_coverage_dependencies
+
+```python
+r_coverage_dependencies()
+```
+
+Repository rule that provides repository definitions for dependencies in
+computing code coverage for unit tests. Not needed if users already have
+a repository definition for the [covr](https://github.com/r-lib/covr) package.
+
+
+<a name="r_register_toolchains"></a>
+## r_register_toolchains
+
+```python
+r_register_toolchains(r_home, strict, makevars_site, version, args, tools)
+```
+
+Repository rule that generates and registers a platform independent toolchain
+of type [r_toolchain](#r_toolchain) based on the user's system and
+environment. If you want to register your own toolchain for specific platforms,
+register them before calling this function in your WORKSPACE file to give them
+preference.
+
+<table class="table table-condensed table-bordered table-params">
+  <colgroup>
+    <col class="col-param" />
+    <col class="param-description" />
+  </colgroup>
+  <thead>
+    <tr>
+      <th colspan="2">Attributes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>r_home</code></td>
+      <td>
+        <p><code>String, optional</code></p>
+        <p>A path to `R_HOME` (as returned from `R RHOME`). If not specified,
+           the rule looks for R and Rscript in `PATH`. The environment variable
+           `BAZEL_R_HOME` takes precendence over this value.</p>
+      </td>
+    </tr>
+    <tr>
+      <td><code>strict</code></td>
+      <td>
+        <p><code>Boolean; default True</code></p>
+        <p>Fail if R is not found on the host system.</p>
+      </td>
+    </tr>
+    <tr>
+      <td><code>makevars_site</code></td>
+      <td>
+        <p><code>Bool; default True</code></p>
+        <p>Generate a site-wide Makevars file.</p>
+      </td>
+    </tr>
+    <tr>
+      <td><code>version</code></td>
+      <td>
+        <p><code>String; optional</code></p>
+        <p>version attribute value for r_toolchain.</p>
+      </td>
+    </tr>
+    <tr>
+      <td><code>args</code></td>
+      <td>
+        <p><code>List of strings; default ["--no-save", "--no-site-file", "--no-environ"]</code></p>
+        <p>args attribute value for r_toolchain.</p>
+      </td>
+    </tr>
+    <tr>
+      <td><code>tools</code></td>
+      <td>
+        <p><code>List of strings; optional</code></p>
+        <p>tools attribute value for r_toolchain.</p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+
+# Convenience Macros
+
 <a name="r_package"></a>
 ## r_package
 
@@ -784,19 +1022,6 @@ r_package_with_test(pkg_name, pkg_srcs, pkg_deps, pkg_suggested_deps=[], test_ti
 Convenience macro to generate the `r_pkg`, `r_library`,
 `r_unit_test`, and `r_pkg_test` targets.
 
-
-Contributing
-------------
-
-Contributions are most welcome. Please submit a pull request giving the owners
-of this github repo access to your branch for minor style related edits, etc.
-
-Known Issues
-------------
-
-Please check open issues at the github repo.
-
-We have tested only on macOS and Ubuntu (VM and Docker).
 
 [r]: https://cran.r-project.org
 [exampleA]: tests/exampleA/BUILD

@@ -21,17 +21,18 @@ load(
     _is_at_least = "is_at_least",
 )
 load(
-    "@com_grail_rules_r//makevars:makevars.bzl",
-    _r_makevars = "r_makevars",
+    "@com_grail_rules_r//R/internal/toolchains:local_toolchain.bzl",
+    _local_r_toolchain = "local_r_toolchain",
 )
-load("@com_grail_rules_r//R/internal:coverage_deps.bzl", "r_coverage_dependencies")
+load(
+    "@com_grail_rules_r//R/internal:coverage_deps.bzl",
+    _r_coverage_dependencies = "r_coverage_dependencies",
+)
 
-load("@com_grail_rules_r//R:repositories.bzl", "r_repository")
+r_coverage_dependencies = _r_coverage_dependencies
 
-def r_rules_dependencies(
-        makevars_darwin = "@com_grail_rules_r_makevars_darwin",
-        makevars_linux = None):
-    _is_at_least("0.10", native.bazel_version)
+def r_rules_dependencies():
+    _is_at_least("0.18.1", native.bazel_version)
 
     # TODO: Use bazel-skylib directly instead of replicating functionality when
     # nested workspaces become a reality.  Otherwise, dependencies will need to
@@ -40,29 +41,21 @@ def r_rules_dependencies(
     _maybe(
         _process_file,
         name = "com_grail_rules_r_makevars_darwin",
-        src = "@com_grail_rules_r//makevars:Makevars.darwin.tpl",
-        processor = "@com_grail_rules_r//makevars:Makevars.darwin.sh",
+        src = "@com_grail_rules_r//R/internal/makevars:Makevars.darwin.tpl",
+        processor = "@com_grail_rules_r//R/internal/makevars:Makevars.darwin.sh",
         processor_args = ["-b"],
     )
 
+def r_register_toolchains(**kwargs):
     _maybe(
-        _r_makevars,
-        name = "com_grail_rules_r_makevars",
-        makevars_darwin = makevars_darwin,
-        makevars_linux = makevars_linux,
+        _local_r_toolchain,
+        name = "com_grail_rules_r_toolchains",
+        **kwargs
     )
 
-    if not native.existing_rule("R_digest_INTERNAL"):
-        r_repository(
-            name = "R_digest_INTERNAL",
-            build_file = None,
-            sha256 = "88276798a37733adbdafa007cdfc7b005077d79bd66a3945b5c39b03bab56c51",
-            strip_prefix = "digest",
-            urls = [
-                "https://ftp.gwdg.de/pub/misc/cran/src/contrib/digest_0.6.17.tar.gz",
-                "https://ftp.gwdg.de/pub/misc/cran/src/contrib/Archive/digest/digest_0.6.17.tar.gz",
-            ],
-        )
+    native.register_toolchains(
+        "@com_grail_rules_r_toolchains//:toolchain",
+    )
 
 def _maybe(repo_rule, name, **kwargs):
     if not native.existing_rule(name):

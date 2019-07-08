@@ -21,33 +21,41 @@ local_repository(
     path = "..",
 )
 
-load("@com_grail_rules_r//R:dependencies.bzl", "r_rules_dependencies")
+load("@com_grail_rules_r//R:dependencies.bzl", "r_register_toolchains", "r_rules_dependencies")
 
 r_rules_dependencies()
 
+r_register_toolchains()
+
 http_archive(
     name = "com_google_protobuf",
-    sha256 = "f6600abeee3babfa18591961a0ff21e7db6a6d9ef82418a261ec4fee44ee6d44",
-    strip_prefix = "protobuf-3.4.0",
-    urls = ["https://github.com/google/protobuf/archive/v3.4.0.tar.gz"],
+    sha256 = "d399f651dbdc5f9116a2da199a808c815c0aeeb8d0b46e3213eee5a41263aeff",
+    strip_prefix = "protobuf-3.8.0-rc1",
+    urls = ["https://github.com/protocolbuffers/protobuf/archive/v3.8.0-rc1.tar.gz"],
 )
+
+load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
+
+protobuf_deps()
 
 http_archive(
     name = "io_bazel_rules_docker",
-    sha256 = "44a830571e44c5f3c81cba058573a4359dd78df57f069e253902db048f059f4f",
-    strip_prefix = "rules_docker-17805d11cf07c4390b24a09f3476fb264b5f20ad",
-    urls = [
-        "https://github.com/bazelbuild/rules_docker/archive/17805d11cf07c4390b24a09f3476fb264b5f20ad.tar.gz",
-    ],
+    sha256 = "aed1c249d4ec8f703edddf35cbe9dfaca0b5f5ea6e4cd9e83e99f3b0d1136c3d",
+    strip_prefix = "rules_docker-0.7.0",
+    urls = ["https://github.com/bazelbuild/rules_docker/archive/v0.7.0.tar.gz"],
 )
 
 load(
-    "@io_bazel_rules_docker//container:container.bzl",
-    "container_pull",
+    "@io_bazel_rules_docker//repositories:repositories.bzl",
     container_repositories = "repositories",
 )
 
 container_repositories()
+
+load(
+    "@io_bazel_rules_docker//container:container.bzl",
+    "container_pull",
+)
 
 container_pull(
     name = "r_base",

@@ -18,21 +18,22 @@ load(
 )
 load(
     "@com_grail_rules_r//R/internal:common.bzl",
-    _Rscript = "Rscript",
     _env_vars = "env_vars",
     _executables = "executables",
     _library_deps = "library_deps",
+    _makevars_files = "makevars_files",
     _package_dir = "package_dir",
     _runtime_path_export = "runtime_path_export",
 )
 load("@com_grail_rules_r//R:providers.bzl", "RPackage")
 
 def _test_impl(ctx):
+    info = ctx.toolchains["@com_grail_rules_r//R:toolchain_type"].RInfo
+
     pkg_deps = list(ctx.attr.suggested_deps)
 
     collect_coverage = ctx.configuration.coverage_enabled
     coverage_files = []
-    gcov_prefix_strip = ""
     if collect_coverage:
         pkg_deps.extend(ctx.attr._coverage_deps)
         coverage_files.append(ctx.file._collect_coverage_R)
@@ -48,9 +49,12 @@ def _test_impl(ctx):
         if src_file.path.startswith(pkg_tests_dir):
             test_files += [src_file]
 
-    tools = _executables(ctx.attr.tools) + ctx.attr.pkg[RPackage].transitive_tools
+    tools = depset(
+        _executables(ctx.attr.tools),
+        transitive = [ctx.attr.pkg[RPackage].transitive_tools],
+    )
 
-    lib_dirs = ["_EXEC_ROOT_" + d.short_path for d in library_deps["lib_dirs"]]
+    lib_dirs = ["_EXEC_ROOT_" + d.short_path for d in library_deps.lib_dirs]
     ctx.actions.expand_template(
         template = ctx.file._test_sh_tpl,
         output = ctx.outputs.executable,
@@ -59,16 +63,16 @@ def _test_impl(ctx):
             "{export_env_vars}": "; ".join(_env_vars(ctx.attr.env_vars)),
             "{tools_export_cmd}": _runtime_path_export(tools),
             "{lib_dirs}": ":".join(lib_dirs),
-            "{Rscript}": " ".join(_Rscript),
+            "{Rscript}": " ".join(info.rscript),
             "{collect_coverage}": "true" if collect_coverage else "false",
             "{collect_coverage.R}": ctx.file._collect_coverage_R.short_path,
-            "{rlang-reproducible}": "1" if "rlang-reproducible" in ctx.features else "0",
         },
         is_executable = True,
     )
 
     runfiles = ctx.runfiles(
-        files = library_deps["lib_dirs"] + library_deps["gcno_dirs"] + test_files + coverage_files,
+        files = (library_deps.lib_dirs + library_deps.gcno_dirs + test_files +
+                 coverage_files + [info.state]),
         transitive_files = tools,
     )
     return struct(
@@ -122,37 +126,46 @@ r_unit_test = rule(
            "scripts of the specified package. The package itself must " +
            "be one of the deps."),
     test = True,
+    toolchains = ["@com_grail_rules_r//R:toolchain_type"],
     implementation = _test_impl,
 )
 
 def _check_impl(ctx):
+    info = ctx.toolchains["@com_grail_rules_r//R:toolchain_type"].RInfo
+
     src_archive = ctx.attr.pkg[RPackage].src_archive
     pkg_deps = ctx.attr.pkg[RPackage].pkg_deps
     build_tools = ctx.attr.pkg[RPackage].build_tools
     cc_deps = ctx.attr.pkg[RPackage].cc_deps
-    makevars_user = ctx.attr.pkg[RPackage].makevars_user
+    makevars = ctx.attr.pkg[RPackage].makevars
 
     library_deps = _library_deps(ctx.attr.suggested_deps + pkg_deps)
-    tools = _executables(ctx.attr.tools) + build_tools
+    tools = depset(
+        _executables(ctx.attr.tools),
+        transitive = [build_tools],
+    )
 
-    all_input_files = ([src_archive] + library_deps["lib_dirs"] +
-                       tools.to_list() +
-                       cc_deps["files"].to_list() + [makevars_user])
+    all_input_files = ([src_archive] + library_deps.lib_dirs +
+                       tools.to_list() + info.files +
+                       cc_deps.files +
+                       _makevars_files(info.makevars_site, makevars) + [info.state])
 
-    lib_dirs = ["_EXEC_ROOT_" + d.short_path for d in library_deps["lib_dirs"]]
+    lib_dirs = ["_EXEC_ROOT_" + d.short_path for d in library_deps.lib_dirs]
     ctx.actions.expand_template(
         template = ctx.file._check_sh_tpl,
         output = ctx.outputs.executable,
         substitutions = {
-            "{export_env_vars}": "\n".join(_env_vars(ctx.attr.env_vars)),
+            "{export_env_vars}": "\n".join(_env_vars(info.env_vars) + _env_vars(ctx.attr.env_vars)),
             "{tools_export_cmd}": _runtime_path_export(tools),
-            "{c_libs_flags}": " ".join(cc_deps["c_libs_flags_short"]),
-            "{c_cpp_flags}": " ".join(cc_deps["c_cpp_flags_short"]),
-            "{c_so_files}": _sh_quote_args([f.short_path for f in cc_deps["c_so_files"]]),
-            "{r_makevars_user}": makevars_user.short_path if makevars_user else "",
+            "{c_libs_flags}": " ".join(cc_deps.c_libs_flags_short),
+            "{c_cpp_flags}": " ".join(cc_deps.c_cpp_flags_short),
+            "{c_so_files}": _sh_quote_args([f.short_path for f in cc_deps.c_so_files]),
+            "{r_makevars_user}": makevars.short_path if makevars else "",
+            "{r_makevars_site}": info.makevars_site.short_path if info.makevars_site else "",
             "{lib_dirs}": ":".join(lib_dirs),
             "{check_args}": _sh_quote_args(ctx.attr.check_args),
             "{pkg_src_archive}": src_archive.short_path,
+            "{R}": " ".join(info.r),
         },
         is_executable = True,
     )
@@ -193,5 +206,6 @@ r_pkg_test = rule(
            "a source archive of this package, and run R CMD check on " +
            "the package source archive in the sandbox."),
     test = True,
+    toolchains = ["@com_grail_rules_r//R:toolchain_type"],
     implementation = _check_impl,
 )
